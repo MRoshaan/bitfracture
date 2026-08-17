@@ -1,0 +1,19 @@
+# BitFracture experiment dependencies (pinned for reproducibility).
+# Final versions are locked during Phase 0 env-check on Kaggle T4 (CUDA 12.1).
+# Versions chosen as a compatible starting point; adjust only if env-check proves
+# an incompatibility, and record the change in pins/versions.md.
+
+torch==2.5.1
+transformers==4.51.3
+accelerate==1.5.0
+bitsandbytes==0.45.0
+auto-gptq==2.7.1
+
+# BFCL evaluator (moving target) -- pin to a commit SHA once Phase 0 confirms one.
+bfcl-eval
+
+numpy==1.26.4
+pandas==2.2.2
+scikit-learn==1.5.1
+matplotlib==3.9.2
+datasets==3.0.1
