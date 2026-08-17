@@ -1,5 +1,6 @@
 # BitFracture — research artifacts (not source-of-truth career data)
 results/
+kernel/out/
 paper/*.pdf
 *.token
 *.json.local
