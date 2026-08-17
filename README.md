@@ -1,4 +1,4 @@
-# SLM-Agents Rank 3 — Quantization Error-Profile Study
+# SLM-Agents Rank 3 - Quantization Error-Profile Study
 
 Research project for the **SLM-Agents: 1st Workshop on SLMs for Agentic Systems**
 (NeurIPS 2026, Paris). See [`ROADMAP.md`](./ROADMAP.md) for the full plan.
