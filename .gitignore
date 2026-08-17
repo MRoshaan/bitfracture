@@ -1,0 +1,11 @@
+# BitFracture — research artifacts (not source-of-truth career data)
+results/
+paper/*.pdf
+*.token
+*.json.local
+.kaggle/
+kaggle.json
+access_token
+__pycache__/
+*.py[cod]
+.DS_Store
