@@ -51,13 +51,14 @@ NO-GO criteria (must check pilot before any full run):
 ====================================================================
 3. PHASES (13 days, backwards from Aug 29)
 ====================================================================
-PHASE 0  Setup (1 day, Aug 18)
-  [ ] configure ~/.kaggle access token  (chmod 600; NEVER git-commit)
-  [ ] create bitfracture/ workspace + ROADMAP
-  [ ] kernel-metadata.json + push helper (per brother's gist)
-  [ ] env-check kernel: pin versions, load Qwen3-1.7B FP16+NF4, run 1 BFCL prompt
-PHASE 1  Pilot / Go-No-Go (2-3 days, Aug 19-21)
-  [ ] 30-50 BFCL entries x 2 models x 3 formats (single-turn core only)
+PHASE 0  Setup (1 day, Aug 18-19)  — DONE 2026-08-19
+  [x] configure ~/.kaggle access token  (chmod 600; NEVER git-commit)
+  [x] create bitfracture/ workspace + ROADMAP
+  [x] kernel-metadata.json + push helper (per brother's gist)
+  [x] env-check kernel: load Qwen3-1.7B FP16+NF4 (pass), W4A16 blocked
+      -> pins/versions.md records stack + W4A16 resolution options
+PHASE 1  Pilot / Go-No-Go (2-3 days, Aug 19-22)
+  [ ] 30-50 BFCL entries x 2 models x 2-3 formats (single-turn core only)
   [ ] error-taxonomy breakdown + bootstrap intervals
   [ ] GATE DECISION recorded in analysis/GATE.md
 PHASE 2  Full run (4-5 days, Aug 22-26)
