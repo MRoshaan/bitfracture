@@ -3,11 +3,12 @@
 # Versions chosen as a compatible starting point; adjust only if env-check proves
 # an incompatibility, and record the change in pins/versions.md.
 
-torch==2.5.1
+torch==2.10.0+cu128  # Kaggle T4 wheels; exact CUDA-12 compatibility noted in pins/versions.md
 transformers==4.51.3
 accelerate==1.5.0
 bitsandbytes==0.45.0
-auto-gptq==2.7.1
+# auto-gptq: use a version that has wheels for torch 2.10 / cuda 12; adjust if env-check fails
+auto-gptq==0.5.2
 
 # BFCL evaluator (moving target) -- pin to a commit SHA once Phase 0 confirms one.
 bfcl-eval
