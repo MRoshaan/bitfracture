@@ -1,9 +1,9 @@
-"""BitFracture Phase 0 env-check kernel.
+"""BitFracture Phase 0 env-check kernel — resilient on Kaggle T4.
 
 Goals:
   1. Record the installed versions of the experiment stack on Kaggle T4.
   2. Load Qwen3-1.7B in FP16 and BNB-NF4; generate one tool-call prompt each.
-  3. Probe W4A16 via AutoGPTQ (small on-the-fly quantize) for feasibility.
+  3. Probe W4A16 via AutoGPTQ (small on-the-fly quantize) — best-effort.
   4. Write versions.json + results.json to /kaggle/working/.
 
 Findings are recorded verbatim; failures are reported, not hidden.
@@ -16,6 +16,7 @@ import json
 import subprocess
 import sys
 import time
+from pathlib import Path
 
 import torch
 
@@ -58,14 +59,16 @@ def collect_versions() -> dict[str, object]:
     for pkg in ["transformers", "accelerate", "bitsandbytes", "auto_gptq", "bfcl_eval", "numpy"]:
         # First try the in-memory metadata; fall back to pip_install which records
         # the exact version that was (or wasn't) resolved on this Kaggle image.
-        val = md.version(pkg) if md.version(pkg, default=None) else pip_install(pkg)
+        try:
+            val = md.version(pkg)
+        except Exception:
+            val = pip_install(pkg)
         out[pkg] = val
     return out
 
 
 def make_prompt(tokenizer, use_tools: bool = True) -> str:
     messages = [
-        {"role": "system", "content": "You are a helpful assistant."},
         {"role": "user", "content": PROMPT},
     ]
     tools = None
@@ -93,11 +96,17 @@ def make_prompt(tokenizer, use_tools: bool = True) -> str:
             tokenize=False,
         )
     except TypeError:
+        # Some Kaggle transformers builds lack the `tools` kwarg; fall back.
         return tokenizer.apply_chat_template(messages, add_generation_prompt=True, tokenize=False)
 
 
-def run(model, tokenizer, name: str) -> dict[str, object]:
-    text = make_prompt(tokenizer)
+def run(model, tokenizer, name: str) -> dict | None:
+    """Generate one tool-call prompt; return dict or None on any error."""
+    try:
+        text = make_prompt(tokenizer)
+    except Exception as exc:
+        print(f"[{name}] make_prompt failed: {exc}")
+        return None
     inputs = tokenizer(text, return_tensors="pt").to(model.device)
     torch.cuda.reset_peak_memory_stats()
     t0 = time.time()
@@ -111,36 +120,13 @@ def run(model, tokenizer, name: str) -> dict[str, object]:
     dt = time.time() - t0
     decoded = tokenizer.decode(out[0][inputs["input_ids"].shape[-1] :], skip_special_tokens=True)
     mem = torch.cuda.max_memory_allocated() / 1e9
-    print(f"[{name}] time={dt:.2f}s peak_mem={mem:.2f}GB")
-    print(f"[{name}] output={decoded[:200]!r}")
+    print(f"[{name}] time={dt:.2f}s peak_mem={mem:.2f}GB output={decoded[:200]!r}")
     return {
         "name": name,
         "seconds": round(dt, 2),
         "peak_mem_gb": round(mem, 2),
         "output_preview": decoded[:200],
     }
-
-
-def probe_autogptq(tokenizer) -> dict[str, object]:
-    try:
-        from auto_gptq import AutoGPTQForCausalLM, BaseQuantizeConfig  # type: ignore
-    except Exception as exc:
-        return {"w4a16": "import_failed", "detail": str(exc)[:300]}
-    quantize_config = BaseQuantizeConfig(bits=4, group_size=128, desc_act=False)
-    samples = [{"prompt": make_prompt(tokenizer)} for _ in range(4)]
-    t0 = time.time()
-    try:
-        model = AutoGPTQForCausalLM.from_pretrained(
-            MODEL_ID, quantize_config=quantize_config, torch_dtype=torch.float16, device="cuda:0"
-        )
-        model.quantize(samples, cache_examples_on_gpu=False)
-        return {
-            "w4a16": "quantized_ok",
-            "seconds": round(time.time() - t0, 2),
-            "version": md.version("auto_gptq"),
-        }
-    except Exception as exc:
-        return {"w4a16": "failed", "detail": str(exc)[:300]}
 
 
 def main() -> None:
@@ -159,6 +145,7 @@ def main() -> None:
     print("[versions]", json.dumps(vers, indent=2))
 
     # ---- load tokenizer (best-effort) ----
+    tokenizer = None
     try:
         tokenizer = AutoTokenizer.from_pretrained(MODEL_ID)
         print("[tokenizer] loaded ok")
@@ -167,6 +154,7 @@ def main() -> None:
         # If even the fallback fails, we'll get errors later but continue.
 
     # ---- FP16 ----
+    results_fp16 = None
     try:
         fp16 = AutoModelForCausalLM.from_pretrained(
             MODEL_ID, torch_dtype=torch.float16, device_map="auto"
@@ -174,15 +162,13 @@ def main() -> None:
         print("[fp16] loaded ok")
         if tokenizer is not None:
             results_fp16 = run(fp16, tokenizer, "fp16")
-        else:
-            results_fp16 = None
         del fp16
         torch.cuda.empty_cache()
     except Exception as exc:
         print(f"[fp16] load failed: {exc}; skipping to NF4.")
-        results_fp16 = None
 
     # ---- NF4 ----
+    results_nf4 = None
     try:
         bnb = BitsAndBytesConfig(
             load_in_4bit=True,
@@ -196,13 +182,10 @@ def main() -> None:
         print("[nf4] loaded ok")
         if tokenizer is not None:
             results_nf4 = run(nf4, tokenizer, "nf4")
-        else:
-            results_nf4 = None
         del nf4
         torch.cuda.empty_cache()
     except Exception as exc:
         print(f"[nf4] load failed: {exc}; skipping to W4A16 probe.")
-        results_nf4 = None
 
     # ---- W4A16 / AutoGPTQ probe (best-effort) ----
     gptq_result: dict = {"w4a16": "skipped"}

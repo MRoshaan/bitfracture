@@ -1,7 +1,7 @@
 {
-  "id": "muhammadroshaan/bitfracture-gpu-check",
-  "title": "BitFracture GPU Check",
-  "code_file": "gpu_check.py",
+  "id": "muhammadroshaan/bitfracture-env-check-v3",
+  "title": "BitFracture Env Check T4 v3",
+  "code_file": "env_check.py",
   "language": "python",
   "kernel_type": "script",
   "is_private": true,
