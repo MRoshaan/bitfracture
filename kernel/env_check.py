@@ -196,7 +196,7 @@ def main() -> None:
     else:
         quantize_config = BaseQuantizeConfig(bits=4, group_size=128, desc_act=False)
         try:
-            m = AutoGPTQForCausalLM.from_pretrained(
+            AutoGPTQForCausalLM.from_pretrained(
                 MODEL_ID,
                 quantize_config=quantize_config,
                 torch_dtype=torch.float16,
