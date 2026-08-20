@@ -57,12 +57,16 @@ PHASE 0  Setup (1 day, Aug 18-19)  — DONE 2026-08-19
   [x] kernel-metadata.json + push helper (per brother's gist)
   [x] env-check kernel: load Qwen3-1.7B FP16+NF4 (pass), W4A16 blocked
       -> pins/versions.md records stack + W4A16 resolution options
-PHASE 1  Pilot / Go-No-Go (2-3 days, Aug 19-22)
-  [ ] 30-50 BFCL entries x 2 models x 2-3 formats (single-turn core only)
-  [ ] error-taxonomy breakdown + bootstrap intervals
-  [ ] GATE DECISION recorded in analysis/GATE.md
+PHASE 1  Pilot / Go-No-Go (2-3 days, Aug 19-22)  — DONE 2026-08-20 (CONDITIONAL GO)
+  [x] 50 BFCL single-turn entries x Qwen3-1.7B x {fp16, nf4}  (5 core categories x10)
+  [x] error-taxonomy breakdown + bootstrap intervals  -> results/phase1/
+  [x] GATE DECISION recorded in analysis/GATE.md      -> CONDITIONAL GO (powered Phase 2)
+  note: W4A16 dropped; gate on 1.7B only (4B is the Phase 2 replication leg).
+        Pipeline fixed during pilot: BFCL flat NDJSON layout, Qwen3 JSON tool-call
+        parser, bitsandbytes>=0.46.1 upgrade on the Kaggle base image.
 PHASE 2  Full run (4-5 days, Aug 22-26)
-  [ ] full core categories x 2 models x 3 formats
+  [ ] full core categories x 2 models (1.7B + 4B) x 2 formats (fp16, nf4)
+  [ ] pre-register powered decision threshold for the missed_required/truncation shift
   [ ] collect throughput/latency/memory/calibration-time
   [ ] charts: error-type bars, error-shift matrix, size x format interaction
 PHASE 3  Paper + Submit (Aug 26-28)
