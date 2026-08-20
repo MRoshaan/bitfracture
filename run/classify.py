@@ -123,9 +123,11 @@ def classify(
 ) -> str:
     """Return one of the taxonomy class names, or 'correct'.
 
-    `entry` is the BFCL ground-truth prompt entry; `raw` is the model output.
-    For the pilot, ground-truth is defined by which tools are expected vs. offered,
-    which is sufficient to distinguish missed/unnecessary/wrong-tool/wrong-args.
+    `entry` is the BFCL prompt entry (with ground_truth merged in); `raw` is the
+    model output. For the pilot, ground-truth correctness is decided at the
+    tool-name + argument-key level (which tool, and which of its arguments the
+    model supplied), sufficient to separate correct / missed / wrong_tool /
+    wrong_args / unnecessary.
     """
     if is_truncated(raw, max_new_tokens, output_token_count):
         return "truncation"
@@ -134,37 +136,43 @@ def classify(
     expected = _expected_call(entry)
 
     if not calls:
-        # Empty/unparseable output.
-        if has_tool_call(raw) is False and not raw.strip():
+        if not raw.strip():
             return "malformed"
-        # Model produced text but no tool call -> if one was required, it's missed.
         if expected is not None:
             return "missed_required"
         return "unnecessary" if _should_not_call(category) else "malformed"
 
-    # At least one tool call parsed.
     if expected is None:
-        # Ground truth says no call should be made -> any call is unnecessary.
         return "unnecessary"
 
     name = next(iter(calls[0]))
     if name != expected["name"]:
         return "wrong_tool"
-    if set(calls[0][name].keys()) != set(expected.get("arguments", {}).keys()):
+
+    model_args = set(calls[0][name].keys())
+    if model_args != expected["argument_keys"]:
         return "wrong_args"
     return "correct"
 
 
 def _expected_call(entry: dict) -> dict | None:
-    """Derive the single expected call from the ground-truth entry, if any."""
+    """Derive the single expected call from the BFCL ground-truth entry, if any.
+
+    BFCL ground truth is a list like [{"tool_name": {"arg": [allowed values]}}].
+    We track the expected tool name and the set of argument keys it should carry.
+    """
     gt = entry.get("ground_truth")
-    if not gt:
+    if not gt or not isinstance(gt, list) or not gt:
         return None
-    # BFCL ground truth is a list of {name, arguments} dicts.
-    if isinstance(gt, list) and gt:
-        item = gt[0]
-        return {"name": item["name"], "arguments": item.get("arguments", {})}
-    return None
+    item = gt[0]
+    if not isinstance(item, dict):
+        return None
+    name = next(iter(item))
+    arg_spec = item[name]
+    keys = set(arg_spec.keys()) if isinstance(arg_spec, dict) else set()
+    # Drop placeholder keys used to mark optional params; keep real ones.
+    keys = {k for k in keys if k}
+    return {"name": name, "argument_keys": keys}
 
 
 def _should_not_call(category: str) -> bool:

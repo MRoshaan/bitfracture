@@ -22,12 +22,16 @@ MODEL_ID = "Qwen/Qwen3-1.7B"
 
 
 def build_messages(entry: dict) -> list[dict]:
-    """Reconstruct the chat messages for a BFCL single-turn entry."""
-    # BFCL single-turn prompt entries carry `question` (a list of role/content
-    # dicts, possibly with a leading system message) and `function` (tool docs).
+    """Reconstruct the chat messages for a BFCL single-turn entry.
+
+    BFCL `question` is a list of turns; each turn is a list of role/content
+    messages. Single-turn entries use the first (and usually only) turn.
+    """
     question = entry["question"]
-    # A system message is optional; Qwen3 wants roles [system?, user].
-    messages = [m for m in question if isinstance(m, dict)]
+    if question and isinstance(question[0], list):
+        messages = list(question[0])
+    else:
+        messages = [m for m in question if isinstance(m, dict)]
     return messages
 
 
@@ -41,8 +45,13 @@ def build_tools(entry: dict) -> list[dict] | None:
         schema = {"type": "function", "function": {"name": fn["name"]}}
         if fn.get("description"):
             schema["function"]["description"] = fn["description"]
-        if fn.get("parameters"):
-            schema["function"]["parameters"] = fn["parameters"]
+        params = fn.get("parameters")
+        if params:
+            # Normalize BFCL's non-standard schema type for transformers.
+            params = dict(params)
+            if params.get("type") in ("dict", "object"):
+                params["type"] = "object"
+            schema["function"]["parameters"] = params
         tools.append(schema)
     return tools
 

@@ -42,54 +42,45 @@ CATEGORIES = ["simple_python", "parallel", "multiple", "live_simple", "live_mult
 CATEGORY_CAP = 10  # -> up to ~30-50 pilot entries across the categories above
 
 
-def resolve_files(bfcl_root: Path, category: str) -> tuple[Path | None, Path | None]:
-    """Best-effort resolve the prompt and ground-truth files for a category.
+def _ndjson(path: Path) -> list[dict]:
+    """Load a BFCL NDJSON file (one JSON object per line)."""
+    out = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if line:
+            out.append(json.loads(line))
+    return out
 
-    Returns (prompt_file, ground_truth_file). Both may be None if the layout
-    of this BFCL checkout doesn't match any known pattern.
+
+def resolve_files(bfcl_root: Path, category: str) -> tuple[Path, Path]:
+    """Resolve the prompt and ground-truth files for a BFCL category.
+
+    BFCL stores single-turn data flat under <root>/bfcl_eval/data/ as
+    BFCL_v4_<category>.json and ground truth at
+    .../possible_answer/BFCL_v4_<category>.json. Raises FileNotFoundError if
+    either file is absent.
     """
-    prompt_paths = [
-        Path("data") / category / f"{category}.json",
-        Path("data") / category / "prompt.json",
-        Path("bfcl") / "data" / category / f"{category}.json",
-        Path("bfcl_eval") / "data" / "eval_data" / "single_turn" / category / f"{category}.json",
-    ]
-    gt_paths = [
-        Path("possible_answer") / f"{category}.json",
-        Path("data") / category / "answer.json",
-        Path("bfcl") / "data" / "possible_answer" / f"{category}.json",
-        Path("bfcl_eval") / "data" / "possible_answer" / f"{category}.json",
-    ]
-    prompt_file = next((bfcl_root / c for c in prompt_paths if (bfcl_root / c).exists()), None)
-    gt_file = next((bfcl_root / c for c in gt_paths if (bfcl_root / c).exists()), None)
+    data_dir = bfcl_root / "bfcl_eval" / "data"
+    prompt_file = data_dir / f"BFCL_v4_{category}.json"
+    gt_file = data_dir / "possible_answer" / f"BFCL_v4_{category}.json"
+    if not prompt_file.exists() or not gt_file.exists():
+        raise FileNotFoundError(f"BFCL data for {category}: missing {prompt_file} or {gt_file}")
     return prompt_file, gt_file
 
 
-def load_ground_truth(gt_file: Path | None) -> dict[str, dict]:
-    """Index ground-truth entries by id (best-effort)."""
-    if gt_file is None or not gt_file.exists():
-        return {}
-    gt_list = json.loads(gt_file.read_text(encoding="utf-8"))
-    if isinstance(gt_list, list):
-        return {e.get("id", str(i)): e for i, e in enumerate(gt_list)}
-    if isinstance(gt_list, dict):
-        return gt_list
-    return {}
+def load_ground_truth(gt_file: Path) -> dict[str, dict]:
+    """Index ground-truth entries by id."""
+    return {e["id"]: e for e in _ndjson(gt_file)}
 
 
 def assemble_entries(bfcl_root: Path, category: str) -> list[dict]:
     """Merge prompt entries with their ground truth into one working list."""
     prompt_file, gt_file = resolve_files(bfcl_root, category)
-    if prompt_file is None:
-        print(f"[data] no prompt file found for {category} (bfcl_root={bfcl_root})")
-        return []
-    prompts = json.loads(prompt_file.read_text(encoding="utf-8"))
     gt_index = load_ground_truth(gt_file)
-
     entries = []
-    for i, p in enumerate(prompts):
+    for p in _ndjson(prompt_file):
         entry = dict(p)
-        entry["ground_truth"] = gt_index.get(p.get("id", str(i)), {}).get("ground_truth")
+        entry["ground_truth"] = gt_index.get(p["id"], {}).get("ground_truth", [])
         entries.append(entry)
     return entries
 

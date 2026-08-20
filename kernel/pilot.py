@@ -19,41 +19,45 @@ import sys
 import time
 from pathlib import Path
 
-BFCL_TAG_URL = "https://github.com/ShishirPatil/gorilla/archive/refs/heads/main.tar.gz"
+BFCL_COMMIT = "6ea57973c7a6097fd7c5915698c54c17c5b1b6c8"  # pinned (bfcl-eval 2026.3.23)
+BFCL_TAG_URL = f"https://github.com/ShishirPatil/gorilla/archive/{BFCL_COMMIT}.tar.gz"
 REPO_URL = "https://github.com/MRoshaan/bitfracture.git"
 REPO_DIR = Path("/kaggle/working/bitfracture")
 RUN_DIR = REPO_DIR / "run"
 WORK = Path("/kaggle/working")
-BFCL_EXTRACT = WORK / "bfcl" / "gorilla-main"
+BFCL_PARENT = WORK / "bfcl"
 
 
 def fetch_bfcl() -> Path | None:
-    """Fetch and extract the BFCL repo; return the located data root (or None)."""
-    tar = WORK / "gorilla.tar.gz"
-    if BFCL_EXTRACT.exists():
-        print("[bfcl] already extracted; skipping fetch.")
-        return _find_bfcl_root(BFCL_EXTRACT)
+    """Fetch and extract the pinned BFCL repo; return the located data root (or None).
 
+    The commit tarball extracts to a versioned top-level dir (gorilla-<commit>/),
+    so we search for the berkeley-function-call-leaderboard root rather than
+    assuming a fixed subdir name.
+    """
+    existing = _find_bfcl_root(BFCL_PARENT)
+    if existing is not None:
+        print(f"[bfcl] already extracted at {existing}; skipping fetch.")
+        return existing
+
+    tar = WORK / "gorilla.tar.gz"
     tar.unlink(missing_ok=True)
     subprocess.run(["curl", "-sL", BFCL_TAG_URL, "-o", str(tar)], check=False)
     if not tar.exists():
         print("[bfcl] download failed (no tar file).")
         return None
-    subprocess.run(["tar", "-xzf", str(tar), "-C", str(WORK / "bfcl")], check=False)
+    BFCL_PARENT.mkdir(parents=True, exist_ok=True)
+    subprocess.run(["tar", "-xzf", str(tar), "-C", str(BFCL_PARENT)], check=False)
     tar.unlink(missing_ok=True)
-    return _find_bfcl_root(BFCL_EXTRACT)
+    return _find_bfcl_root(BFCL_PARENT)
 
 
-def _find_bfcl_root(extract_dir: Path) -> Path | None:
-    """Locate the berkeley-function-call-leaderboard package root under extract_dir."""
-    cands = [
-        extract_dir / "berkeley-function-call-leaderboard",
-        extract_dir / "berkeley-function-call-leaderboard" / "bfcl",
-    ]
-    for c in cands:
-        if (c / "bfcl_eval").is_dir() or (c / "data").is_dir() or (c / "bfcl").is_dir():
-            return c
-    return extract_dir
+def _find_bfcl_root(search_root: Path) -> Path | None:
+    """Recursively locate the berkeley-function-call-leaderboard package root."""
+    for cand in search_root.rglob("berkeley-function-call-leaderboard"):
+        if cand.is_dir():
+            return cand
+    return None
 
 
 def probe_data_layout(bfcl_root: Path | None) -> str:
@@ -71,23 +75,19 @@ def probe_data_layout(bfcl_root: Path | None) -> str:
         "irrelevance",
     ]
     data_candidates = [
-        bfcl_root / "bfcl" / "data",
         bfcl_root / "bfcl_eval" / "data",
         bfcl_root / "data",
     ]
     data_dir = next((d for d in data_candidates if d.is_dir()), None)
     probe["data_dir"] = str(data_dir) if data_dir else None
     for cat in cats:
-        found = []
         if data_dir:
-            for p in (data_dir / cat).glob("*") if (data_dir / cat).is_dir() else []:
-                found.append(p.name)
-        probe["cats"][cat] = found
+            f = data_dir / f"BFCL_v4_{cat}.json"
+            probe["cats"][cat] = [f.name] if f.exists() else []
     # ground truth (possible_answer)
     pa_candidates = [
-        bfcl_root / "possible_answer",
-        bfcl_root / "bfcl" / "data" / "possible_answer",
         bfcl_root / "bfcl_eval" / "data" / "possible_answer",
+        bfcl_root / "data" / "possible_answer",
     ]
     pa_dir = next((d for d in pa_candidates if d.is_dir()), None)
     probe["possible_answer_dir"] = str(pa_dir) if pa_dir else None
@@ -111,17 +111,31 @@ def main() -> None:
     sys.path.insert(0, str(RUN_DIR))
     sys.path.insert(0, str(WORK))
 
-    # 2. Fetch BFCL data tree (pinned main@latest; exact commit logged at pull time).
+    # 2. Fetch pinned BFCL data tree (commit pinned above; exact SHA logged at pull).
     bfcl_root = fetch_bfcl()
     print("[bfcl] data layout probe:\n" + probe_data_layout(bfcl_root))
+    if bfcl_root is None:
+        raise RuntimeError("BFCL data tree could not be located — aborting pilot.")
 
     # 3. Run the pilot.
     import pilot_runner
 
-    root_arg = bfcl_root if bfcl_root is not None else "/kaggle/working/bfcl/gorilla-main"
-    pilot_runner.main(root_arg)
+    try:
+        pilot_runner.main(bfcl_root)
+    finally:
+        _cleanup_artifacts()
 
     print(json.dumps({"finished_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}))
+
+
+def _cleanup_artifacts() -> None:
+    """Remove cloned repo + BFCL extract so pulled kernel output stays lean."""
+    import shutil
+
+    for p in (REPO_DIR, BFCL_PARENT):
+        shutil.rmtree(p, ignore_errors=True)
+    (WORK / "gorilla.tar.gz").unlink(missing_ok=True)
+    print("[cleanup] removed repo clone and BFCL extract.")
 
 
 if __name__ == "__main__":

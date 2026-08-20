@@ -10,7 +10,7 @@ from classify import bootstrap_ci, classify, extract_tool_calls  # noqa: E402
 
 ENTRY = {
     "id": "simple_python_0",
-    "ground_truth": [{"name": "get_weather", "arguments": {"city": "Tokyo"}}],
+    "ground_truth": [{"get_weather": {"city": ["Tokyo"]}}],
 }
 
 
