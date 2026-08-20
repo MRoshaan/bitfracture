@@ -55,6 +55,16 @@ def test_extract_parse_json():
     assert extract_tool_calls(raw) == [{"get_weather": {"city": "Tokyo"}}]
 
 
+def test_json_object_form_correct():
+    raw = '<tool_call>\n{"name": "get_weather", "arguments": {"city": "Tokyo"}}\n</tool_call>'
+    assert classify(ENTRY, raw, "simple_python", 192, 50) == "correct"
+
+
+def test_extract_json_object_form():
+    raw = '<tool_call>\n{"name": "get_weather", "arguments": {"city": "Tokyo"}}\n</tool_call>'
+    assert extract_tool_calls(raw) == [{"get_weather": {"city": "Tokyo"}}]
+
+
 def test_bootstrap_ci_bounds():
     labels = ["correct"] * 30 + ["wrong_args"] * 10 + ["missed_required"] * 10
     ci = bootstrap_ci(labels, ["correct", "wrong_args", "missed_required", "malformed"])

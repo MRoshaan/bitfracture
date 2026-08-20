@@ -105,11 +105,33 @@ def sync_repo() -> Path:
     return REPO_DIR
 
 
+def ensure_deps() -> None:
+    """Upgrade bitsandbytes so transformers 5.0.0 can load 4-bit (NF4).
+
+    The Kaggle base image ships an old bnb (<0.46.1) that transformers rejects
+    for 4-bit quantization; the earlier env-check upgraded it in-kernel, so we
+    must do the same here.
+    """
+    subprocess.run(
+        [sys.executable, "-m", "pip", "install", "-q", "-U", "bitsandbytes>=0.46.1"],
+        check=False,
+    )
+    import importlib.metadata as md
+
+    try:
+        print(f"[deps] bitsandbytes -> {md.version('bitsandbytes')}")
+    except Exception:
+        print("[deps] bitsandbytes version unknown")
+
+
 def main() -> None:
     # 1. Clone the project repo and make its run/ modules importable.
     sync_repo()
     sys.path.insert(0, str(RUN_DIR))
     sys.path.insert(0, str(WORK))
+
+    # 1b. Ensure NF4-capable bitsandbytes.
+    ensure_deps()
 
     # 2. Fetch pinned BFCL data tree (commit pinned above; exact SHA logged at pull).
     bfcl_root = fetch_bfcl()

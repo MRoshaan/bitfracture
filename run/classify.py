@@ -36,12 +36,17 @@ CALL_BODY_RE = re.compile(r"(\w+)\s*\(\s*\{(.*?)\}\s*\)", re.DOTALL)
 def extract_tool_calls(raw: str) -> list[dict]:
     """Parse Qwen3-native tool calls into a list of {name: {args}} dicts.
 
-    Tolerates the <tool_call> wrapper, the paren/json body form, and the legacy
-    self-closing <name k=v> form emitted by older chat templates.
+    Handles the JSON form  {"name": ..., "arguments": {...}}  inside <tool_call>,
+    the paren/json body form  name({json}), and the legacy self-closing
+    <name k=v> form emitted by older chat templates.
     """
     calls: list[dict] = []
     for m in TOOL_CALL_RE.finditer(raw):
         inner = m.group(1).strip()
+        parsed = _json_form(inner)
+        if parsed is not None:
+            calls.extend(parsed)
+            continue
         body = re.search(CALL_BODY_RE, inner)
         if body:
             name, args_text = body.group(1), body.group(2).strip()
@@ -56,6 +61,29 @@ def extract_tool_calls(raw: str) -> list[dict]:
                 calls.append({name: {}})
             else:
                 calls.append({name: _loose_kv(attrs)})
+    return calls
+
+
+def _json_form(inner: str) -> list[dict] | None:
+    """Parse a Qwen3 JSON tool-call body like {"name":..., "arguments":{}}.
+
+    Returns a list of {name: {args}} dicts, or None if the text is not in this
+    form (so the caller can fall back to other parsers).
+    """
+    text = inner.strip()
+    text_arr = text if text.startswith("[") else f"[{text}]"
+    try:
+        obj = json.loads(text_arr)
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(obj, list):
+        return None
+    calls = []
+    for item in obj:
+        if not isinstance(item, dict) or "name" not in item:
+            return None
+        args = item.get("arguments", {})
+        calls.append({item["name"]: args if isinstance(args, dict) else {}})
     return calls
 
 
