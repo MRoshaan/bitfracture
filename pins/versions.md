@@ -29,3 +29,15 @@ These are the ACTUAL versions that load on the current Kaggle image.
    b. Use **AutoAWQ** instead (if it has a compatible wheel) — needs a quick probe.
    c. Use a pre-quantized GPTQ checkpoint from HF Hub (e.g., trust-remote-code GPTQ repos) with the transformers GPTQ integration (quant_method="gptq") — avoids auto-gptq pip package entirely.
 3. Plan the Phase 1 matrix around this: either 2-formats (safe) or resolve W4A16 via option (c).
+
+## Phase 1 decisions (2026-08-20)
+- **W4A16 dropped (Option 1).** Pilot + full run are FP16 vs NF4 only.
+- **Gate runs on Qwen3-1.7B only.** Qwen3-4B becomes the replication leg in Phase 2.
+- **BFCL pin:** commit `6ea57973c7a6097fd7c5915698c54c17c5b1b6c8`
+  (gorilla/berkeley-function-call-leaderboard @ bfcl-eval 2026.3.23).
+  Note: BFCL's built-in OSS generation path needs vLLM/sglang (not ideal on T4);
+  we generate with our own HF script and write BFCL-format result files.
+- **Result-file format:** single-turn AST result entries are `{"id", "result", ...}`
+  written as NDJSON under `BFCL_v3_<category>_result.json`; taxonomy is our own
+  7-class classifier (not BFCL's AST parser), so the gate never depends on a model
+  being registered in BFCL's MODEL_CONFIG_MAPPING.

@@ -1,0 +1,13 @@
+{
+  "id": "muhammadroshaan/bitfracture-pilot-v1",
+  "title": "BitFracture Pilot FP16-NF4 v1",
+  "code_file": "pilot.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_internet": true,
+  "dataset_sources": [],
+  "competition_sources": [],
+  "kernel_sources": []
+}
