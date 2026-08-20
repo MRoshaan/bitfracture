@@ -29,3 +29,14 @@ def test_pins_requirements_present() -> None:
 def test_reference_seed_present() -> None:
     seed = ROOT / "reference" / "neurips2026_slm_agentic_ideas.md"
     assert seed.exists(), "source ideas doc missing from reference/"
+
+
+def test_pilot_metadata_points_to_pilot_script() -> None:
+    import json
+
+    meta = json.loads((ROOT / "kernel" / "pilot-metadata.json").read_text(encoding="utf-8"))
+    code_file = meta["code_file"]
+    assert (ROOT / "kernel" / code_file).exists(), (
+        f"kernel/{code_file} referenced by pilot-metadata.json but missing"
+    )
+    assert meta["enable_gpu"] is True
