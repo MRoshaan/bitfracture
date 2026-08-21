@@ -12,3 +12,9 @@ access_token
 __pycache__/
 *.py[cod]
 .DS_Store
+paper/*.aux
+paper/*.log
+paper/*.out
+paper/*.bbl
+paper/*.blg
+paper/neurips_kit.zip

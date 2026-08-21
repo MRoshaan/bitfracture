@@ -64,14 +64,18 @@ PHASE 1  Pilot / Go-No-Go (2-3 days, Aug 19-22)  — DONE 2026-08-20 (CONDITIONA
   note: W4A16 dropped; gate on 1.7B only (4B is the Phase 2 replication leg).
         Pipeline fixed during pilot: BFCL flat NDJSON layout, Qwen3 JSON tool-call
         parser, bitsandbytes>=0.46.1 upgrade on the Kaggle base image.
-PHASE 2  Full run (4-5 days, Aug 22-26)
-  [ ] full core categories x 2 models (1.7B + 4B) x 2 formats (fp16, nf4)
-  [ ] pre-register powered decision threshold for the missed_required/truncation shift
-  [ ] collect throughput/latency/memory/calibration-time
-  [ ] charts: error-type bars, error-shift matrix, size x format interaction
-PHASE 3  Paper + Submit (Aug 26-28)
-  [ ] write 6pp NeurIPS-template paper (overleaf template URL in CFP)
-  [ ] double-blind pass (no names, no repo links with real identity)
+PHASE 2  Full run (4-5 days, Aug 22-26)  — DONE 2026-08-22 (kernel phase2-fp16-nf4-v1)
+  [x] full core categories x 2 models (1.7B + 4B) x 2 formats (fp16, nf4)
+      n=150/model-format; pre-registration committed BEFORE the run
+  [x] pre-register powered decision threshold (analysis/PREREGISTRATION.md)
+      outcome: WEAK/MIXED — size-dependent effect (1.7B missed_required
+      6.0->17.3%, CI [-19.3,-4.7] SOLID; 4B null, CI [-6.0,+6.0])
+  [x] collect throughput/latency/memory/calibration-time
+  [x] charts: error-type bars, size x format interaction (paper/figures/)
+PHASE 3  Paper + Submit (Aug 26-28)  — IN PROGRESS (started 2026-08-22)
+  [x] write 6pp NeurIPS-template paper (paper/main.tex, official
+      neurips_2026.sty dblblindworkshop option, compiles to exactly 6pp)
+  [ ] human review pass of main.tex (claims wording vs GATE.md honesty rules)
   [ ] create OpenReview profile if not active; submit by Aug 28, buffer 1 day
 
 ====================================================================
