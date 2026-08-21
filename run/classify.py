@@ -236,6 +236,37 @@ def bootstrap_ci(
     return result
 
 
+def bootstrap_diff_ci(
+    labels_a: list[str],
+    labels_b: list[str],
+    classes: list[str],
+    n_boot: int = 2000,
+    seed: int = 0,
+    alpha: float = 0.05,
+) -> dict[str, dict[str, float]]:
+    """Two-sample bootstrap CI on the proportion difference (a - b) per class.
+
+    Resamples each group independently so the CI reflects uncertainty in both
+    formats. Positive delta means the class is MORE common in group a.
+    """
+    rng = random.Random(seed)
+    na, nb = len(labels_a), len(labels_b)
+    result: dict[str, dict[str, float]] = {}
+    for cls in classes:
+        diffs = []
+        for _ in range(n_boot):
+            sa = sum(rng.choice(labels_a) == cls for _ in range(na)) / na
+            sb = sum(rng.choice(labels_b) == cls for _ in range(nb)) / nb
+            diffs.append(sa - sb)
+        sorted_diffs = sorted(diffs)
+        result[cls] = {
+            "mean": labels_a.count(cls) / na - labels_b.count(cls) / nb,
+            "ci_lo": sorted_diffs[int(n_boot * alpha / 2)],
+            "ci_hi": sorted_diffs[int(n_boot * (1 - alpha / 2))],
+        }
+    return result
+
+
 def format_breakdown(labels: list[str], classes: list[str]) -> Counter:
     counts = Counter(labels)
     return Counter({cls: counts.get(cls, 0) for cls in classes})

@@ -85,13 +85,13 @@ def assemble_entries(bfcl_root: Path, category: str) -> list[dict]:
     return entries
 
 
-def load_model(format_name: str):
+def load_model(format_name: str, model_id: str = MODEL_ID):
     from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 
-    tokenizer = AutoTokenizer.from_pretrained(MODEL_ID)
+    tokenizer = AutoTokenizer.from_pretrained(model_id)
     if format_name == "fp16":
         model = AutoModelForCausalLM.from_pretrained(
-            MODEL_ID, torch_dtype=torch.float16, device_map="auto"
+            model_id, torch_dtype=torch.float16, device_map="auto"
         )
     elif format_name == "nf4":
         bnb = BitsAndBytesConfig(
@@ -101,7 +101,7 @@ def load_model(format_name: str):
             bnb_4bit_use_double_quant=True,
         )
         model = AutoModelForCausalLM.from_pretrained(
-            MODEL_ID, quantization_config=bnb, device_map="auto"
+            model_id, quantization_config=bnb, device_map="auto"
         )
     else:
         raise ValueError(f"Unknown format: {format_name}")

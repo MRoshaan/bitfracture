@@ -2,6 +2,7 @@
 results/
 kernel/out/
 kernel_pilot/
+kernel_phase2/
 paper/*.pdf
 *.token
 *.json.local
