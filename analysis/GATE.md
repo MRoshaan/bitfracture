@@ -101,3 +101,61 @@ powered confirmation before committing to the paper.
 - transformers 5.0.0, bitsandbytes 0.50.1, torch 2.10.0+cu128, python 3.12.13 — recorded in results/phase1/pilot_results.json
 - Raw outputs: results/phase1/ (gitignored)
 - Kernel: muhammadroshaan/bitfracture-pilot-fp16-nf4-v3
+
+---
+
+# PHASE 2 GATE DECISION (2026-08-22)
+
+Status: **DECIDED — WEAK / MIXED (pre-registered outcome #2). Size-dependent effect: real in 1.7B, absent in 4B.**
+
+Evaluated strictly against analysis/PREREGISTRATION.md (committed BEFORE the run):
+
+| Pre-registered outcome | Requirement | Result |
+|---|---|---|
+| CONFIRMED SHIFT | BOTH models' missed_required Δ CI excludes 0 | NOT met |
+| **WEAK / MIXED** | Only ONE model's Δ CI excludes 0 | **MET — Qwen3-1.7B only** |
+| POWERED NULL | Neither model's CI excludes 0 | Not met |
+
+## The numbers (n=150/format; full detail in RESULTS.md + phase2_summary.txt)
+
+- **Qwen3-1.7B:** missed_required 6.0% → 17.3% under NF4; Δ = −11.3pp,
+  95% CI [−19.3, −4.7] — solid, ~2x the pilot effect size, spread across all
+  five categories (not a single-category artifact).
+- **Qwen3-4B:** missed_required identical at 7.3% vs 7.3% (11/150 each);
+  CI [−6.0, +6.0] bounds any true effect as small. NF4 nominally better on
+  correct (84.0% vs 79.3%) and wrong_args.
+
+## Interpretation (honest)
+
+The pre-registered "confirmed shift" failed because the effect does not
+generalize across sizes. What we actually have is a **size × quantization
+interaction**: NF4 breaks tool-calling discipline (missed required calls) in
+the SMALL model and leaves the larger one intact — if anything slightly
+improved. This is consistent with the pilot signal being real but
+model-size-dependent, and inconsistent with it being pure noise (a null in
+1.7B would have been expected under noise).
+
+## Decision
+
+[x] Proceed to Phase 3 paper with the interaction framing:
+    "4-bit quantization shifts the error distribution toward missed required
+    calls in small models (Qwen3-1.7B) but not mid-size ones (Qwen3-4B)."
+    Claims stay bounded to what was measured; no universal quantization claims.
+[ ] NOT the originally imagined uniform-shift paper — that hypothesis is
+    partially refuted by the 4B leg and must be reported as such.
+[ ] Rank 1 pivot NOT triggered (the preregistered pivot condition was a
+    powered null on both models; we do not have that).
+
+## Falsification checks performed
+
+- Not a parser bug: same classifier for all cells; 4B nf4 parses fine (126 correct).
+- Not a single-category artifact: 1.7B nf4 misses appear in all 5 categories.
+- No post-hoc changes: decoding, categories, n, and decision rule were fixed
+  in PREREGISTRATION.md before generation; nothing was altered after seeing data.
+- The powered null on the 4B is itself reported as a bounded result (±6pp), not hidden.
+
+## Reproducibility metadata (Phase 2)
+
+- Kernel: muhammadroshaan/bitfracture-phase2-fp16-nf4-v1 (T4, COMPLETE)
+- Raw outputs: results/phase2/results_phase2/ (gitignored) incl. phase2_summary.txt
+- Versions recorded per-cell in phase2_results.json
